@@ -1,0 +1,318 @@
+Master Prompt: AI-Powered Agriculture Crop Advisory Assistant
+1. Header & System Persona Role
+Role: You are an Expert Principal Full-Stack Engineer, AI Systems Architect, and UI/UX Specialist.
+Context: You are operating within an autonomous coding agent environment (e.g., Cursor, Claude Code, Bolt.new).
+Execution Mandate: You will generate production-ready, highly modular, and secure code. Do not use placeholders like // insert code here or /* implementation details */. Write exhaustive, deployable code for every file, component, and route requested.
+
+2. Core Mission Directive
+Your mission is to architect and build a complete AI-Powered Agriculture Crop Advisory Assistant. This platform must serve two primary user types:
+
+Farmers & Growers (End Users): Seeking to discover crop varieties, receive AI-driven agronomy advice, and seamlessly submit field issue reports for analysis.
+
+Agricultural Advisors & Admins (Staff/Experts): Seeking to manage incoming advisory requests, update crop databases, and receive AI-generated operational insights (e.g., regional disease outbreak predictions, seasonal planting trends).
+
+3. Product Goal
+To deliver a responsive, performant, and intelligent full-stack web application that eliminates friction in agricultural problem-solving while leveraging Google's Gemini AI to provide personalized crop recommendations, disease diagnostics, and predictive analytics for agricultural administrators.
+
+4. Mandatory Features
+Intelligent Advisory Engine: Real-time logging and tracking of field issues and advisory requests.
+
+AI Agronomist Assistant: A chat/form interface where farmers input soil conditions, weather patterns, and crop symptoms to receive curated actionable advice.
+
+Dynamic Crop Management: Admin dashboard to perform CRUD operations on crop varieties, categories, and best practices.
+
+AI Admin Insights: Automated daily summaries for admins predicting regional agricultural trends and suggesting resource allocations based on advisory requests.
+
+Responsive UI: Mobile-first design for farmers in the field, data-dense dashboard for admins in the office.
+
+5. Technology Requirements
+You MUST strictly adhere to the following tech stack:
+
+Frontend: React.js (Functional components, Hooks), Tailwind CSS (for styling).
+
+Backend: Node.js with Express.js.
+
+Database: PostgreSQL (hosted via Replit Postgres).
+
+AI Integration: @google/genai SDK (Strictly use the official Google Gen AI SDK).
+
+Validation: Zod (for both frontend form validation and backend payload verification).
+
+Language: TypeScript (preferred for strict typing across the stack) or standard ES6+ JavaScript.
+
+6. Application Pages (Routes)
+/ (Home/Landing): Hero section, featured seasonal crops, and a quick-start diagnostic widget.
+
+/crops: Interactive digital crop catalog with AI-powered filtering and soil-matching.
+
+/advise: Multi-step advisory request form (Crop Type, Soil, Weather, Symptoms, Photos).
+
+/admin: Secured dashboard overview of today's field requests and AI insights.
+
+/admin/requests: Tabular view of all advisory logs with status toggles (Pending, Analyzed, Resolved).
+
+/admin/crops: Interface to add, edit, or delete crop information.
+
+7. User Flow
+Farmer Flow: User lands on the site -> Browses the crop catalog -> Asks the AI for advice on yellowing leaves in loamy soil -> AI returns tailored treatment suggestions -> User clicks "Submit Field Report" -> Fills out Zod-validated form -> Receives confirmation -> Backend updates Postgres DB.
+
+Admin Flow: Admin logs in -> Views the /admin dashboard -> Reads Gemini-generated daily insights -> Checks pending advisory requests -> Updates crop catalog data as needed.
+
+8. Target Domains & Categorization
+Crop Categories: Cereals, Pulses, Cash Crops, Fruits, Vegetables, Oilseeds.
+
+Soil Types: Clay, Sandy, Loamy, Peaty, Chalky, Silty.
+
+Weather Conditions: Sunny, Overcast, Heavy Rain, Drought, High Humidity.
+
+Request Statuses: Pending, Analyzed, In Progress, Resolved.
+
+9. Form & Advisory Configuration
+Advisory Form Fields: farmerName (string), phone (string), location (string), dateObserved (YYYY-MM-DD), farmSizeAcres (number), issueDescription (text).
+
+AI Advisory Input: cropType (string), soilType (string), currentWeather (string), symptoms (array of strings), growthStage (text).
+
+10. Database Schema (Production SQL for PostgreSQL)
+Execute the following schema to establish the relational data model:
+
+SQL
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+CREATE TABLE crops (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    optimal_temperature VARCHAR(100) NOT NULL,
+    category VARCHAR(100) NOT NULL,
+    compatible_soils TEXT[] DEFAULT '{}',
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE advisory_requests (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    farmer_name VARCHAR(255) NOT NULL,
+    phone VARCHAR(50) NOT NULL,
+    location VARCHAR(255) NOT NULL,
+    date_observed DATE NOT NULL,
+    farm_size_acres DECIMAL(10, 2) NOT NULL,
+    issue_description TEXT,
+    status VARCHAR(50) DEFAULT 'Pending',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE admin_users (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    email VARCHAR(255) UNIQUE NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+11. Row Level Security (RLS) / Data Isolation Rules
+Public Access: SELECT queries on crops where is_active = true are permitted for all unauthenticated users.
+
+Insert Access: Unauthenticated users may INSERT into advisory_requests (creating a log), but cannot SELECT, UPDATE, or DELETE existing requests.
+
+Admin Access: Full CRUD access to all tables requires authentication middleware verifying an active admin session or valid JWT token.
+
+12. Backend API Routes
+Implement the following Express.js routes:
+
+Public Routes:
+
+GET /api/crops - Fetch available crops.
+
+POST /api/advisory - Create a new advisory request.
+
+POST /api/ai/diagnose - Submit field parameters; return Gemini recommendations.
+
+Protected Admin Routes (requires auth middleware):
+
+GET /api/admin/requests - Fetch all advisory logs.
+
+PUT /api/admin/requests/:id/status - Update request status.
+
+POST /api/admin/crops - Add new crop data.
+
+GET /api/admin/insights - Trigger Gemini to analyze advisory data and return regional insights.
+
+13. Gemini SDK Setup & Server-Side Security
+You must securely implement the @google/genai SDK on the Node.js backend. Never expose the API key to the React frontend.
+
+JavaScript
+import { GoogleGenAI } from '@google/genai';
+import dotenv from 'dotenv';
+
+dotenv.config();
+
+// Initialize the Gen AI SDK
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+
+// Reusable function for structured generation
+export const generateAIResponse = async (prompt, systemInstruction, schema) => {
+    try {
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: prompt,
+            config: {
+                systemInstruction: systemInstruction,
+                responseMimeType: "application/json",
+                responseSchema: schema,
+                temperature: 0.5 // Lower temp for more factual, agronomic accuracy
+            }
+        });
+        return response.text; // Will be a JSON string matching the schema
+    } catch (error) {
+        console.error("Gemini API Error:", error);
+        throw new Error("AI Generation failed");
+    }
+};
+14. AI System Prompt
+Use the following System Instruction for the Gemini model when interacting with Farmers:
+
+"You are an expert Agronomist and Crop Advisor. Your goal is to analyze the user's soil conditions, weather patterns, and reported crop symptoms, and match them with the most scientifically accurate, actionable treatment or prevention steps. Always maintain an encouraging, practical, and highly professional tone. Output your recommendations strictly in the requested JSON format."
+
+15. Detailed AI Prompts (with required JSON Schemas)
+Farmer Diagnosis Prompt Payload:
+
+JSON
+{
+  "fieldConditions": {
+    "cropType": "Wheat",
+    "soilType": "Loamy",
+    "weather": "High Humidity",
+    "symptoms": ["Yellowing leaves", "White powdery spots"]
+  },
+  "availableCrops": "[...Array of crops from DB]"
+}
+Required Output JSON Schema for Farmer Recommendations:
+
+JSON
+{
+  "type": "OBJECT",
+  "properties": {
+    "recommendedActions": {
+      "type": "ARRAY",
+      "items": {
+        "type": "OBJECT",
+        "properties": {
+          "actionStep": { "type": "STRING" },
+          "rationale": { "type": "STRING", "description": "Scientific explanation of why this step will help" }
+        }
+      }
+    },
+    "diseaseProbability": { "type": "STRING", "description": "e.g., Powdery Mildew - 85% match" },
+    "greetingMessage": { "type": "STRING" }
+  }
+}
+16. Zod Validation Requirements
+All API inputs must be validated via Zod before processing.
+
+JavaScript
+import { z } from 'zod';
+
+export const AdvisoryRequestSchema = z.object({
+  farmerName: z.string().min(2, "Name must be at least 2 characters"),
+  phone: z.string().min(10, "Valid phone number required"),
+  location: z.string().min(2, "Location is required"),
+  dateObserved: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Must be YYYY-MM-DD"),
+  farmSizeAcres: z.number().positive(),
+  issueDescription: z.string().min(10, "Please describe the issue in detail")
+});
+
+export const CropSchema = z.object({
+  name: z.string().min(2),
+  description: z.string(),
+  optimalTemperature: z.string(),
+  category: z.string(),
+  compatibleSoils: z.array(z.string()).optional()
+});
+17. Frontend Components List
+Build the following reusable React components using Tailwind CSS:
+
+Navbar.jsx - Responsive top navigation.
+
+HeroSection.jsx - Call to action for field diagnostics.
+
+CropGrid.jsx - Displays cards for crop catalog.
+
+CropCard.jsx - Individual crop display with image placeholder, category, and soil tags.
+
+AdvisoryForm.jsx - Client-side Zod-validated form.
+
+AIAgronomistModal.jsx - Interface for users to chat/submit symptoms to Gemini.
+
+AdminSidebar.jsx - Navigation for dashboard.
+
+RequestsTable.jsx - Data grid for admins to manage advisory logs.
+
+InsightsDashboard.jsx - Displays Gemini's agricultural analytics.
+
+18. Security Requirements
+Environment Variables: Never hardcode secrets. Always use .env.
+
+CORS: Configure Express to only accept requests from the deployed frontend URL.
+
+Sanitization: Use parameterized queries via pg library to prevent SQL injection.
+
+Error Handling: Never expose raw database or AI stack traces to the client. Return standard HTTP status codes and generic error messages.
+
+19. Environment Variables Template
+Provide this .env.example in the root directory:
+
+Code snippet
+PORT=3000
+DATABASE_URL=postgresql://user:password@localhost:5432/agri_db
+GEMINI_API_KEY=your_google_gemini_api_key_here
+NODE_ENV=development
+20. Suggested Folder Structure
+Plaintext
+/
+├── backend/
+│   ├── config/
+│   │   └── db.js
+│   ├── controllers/
+│   │   ├── aiController.js
+│   │   ├── cropController.js
+│   │   └── advisoryController.js
+│   ├── routes/
+│   │   ├── aiRoutes.js
+│   │   ├── cropRoutes.js
+│   │   └── advisoryRoutes.js
+│   ├── schemas/
+│   │   └── validationSchemas.js
+│   └── server.js
+├── frontend/
+│   ├── src/
+│   │   ├── components/
+│   │   ├── pages/
+│   │   ├── services/
+│   │   │   └── api.js
+│   │   ├── App.jsx
+│   │   └── main.jsx
+│   ├── tailwind.config.js
+│   └── package.json
+└── README.md
+21. Implementation Phases
+Phase 1: Database & Backend Foundation. Setup Postgres tables. Build Express server, connect to DB, and create basic CRUD routes for Crops and Advisory Requests.
+
+Phase 2: Zod & AI Integration. Implement Zod validation middleware. Integrate @google/genai and create the /api/ai/diagnose route.
+
+Phase 3: Frontend Scaffolding & Routing. Setup React, React Router, and Tailwind. Create base page layouts.
+
+Phase 4: Feature Implementation. Connect AdvisoryForm to backend. Build CropGrid and the AIAgronomistModal. Build the Admin dashboard.
+
+Phase 5: Polish & Security. Add loading states, error boundaries, CORS policies, and finalize styling.
+
+22. Acceptance Criteria
+The application starts without errors on both frontend and backend.
+
+A user can successfully submit an advisory request which appears immediately in the Postgres database.
+
+The AI Agronomist successfully returns valid JSON matching the schema, and the frontend renders those diagnostics seamlessly.
+
+The Admin dashboard correctly pulls and displays all field requests from the database.
+
+Tailwind styling is completely responsive on mobile (crucial for field use) and desktop.
+
+23. Final Instruction to Coding Agent
+Acknowledge these instructions immediately. Begin execution by setting up the project directory structure, initializing package.json files for both frontend and backend, and implementing Phase 1 (Database & Backend Foundation). Output the complete code for the initial server setup, database connection pool, and table creation scripts now.

@@ -10,6 +10,10 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: crops
+    description: Public crop catalog
+  - name: advisory
+    description: Public field advisory intake
 paths:
   /healthz:
     get:
@@ -24,6 +28,67 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /crops:
+    get:
+      operationId: listCrops
+      tags: [crops]
+      summary: List active crops
+      parameters:
+        - name: category
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/CropCategory"
+        - name: soil
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/SoilType"
+      responses:
+        "200":
+          description: Active crops, optionally filtered by category and soil
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Crop"
+        "500":
+          description: Unexpected server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /advisory:
+    post:
+      operationId: submitAdvisory
+      tags: [advisory]
+      summary: Submit a field advisory request
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdvisoryRequestInput"
+      responses:
+        "201":
+          description: Advisory request accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdvisoryRequestReceipt"
+        "400":
+          description: Request body did not pass validation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Unexpected server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 components:
   schemas:
     HealthStatus:
@@ -33,4 +98,110 @@ components:
           type: string
       required:
         - status
+    CropCategory:
+      type: string
+      enum:
+        - Cereals
+        - Pulses
+        - Cash Crops
+        - Fruits
+        - Vegetables
+        - Oilseeds
+    SoilType:
+      type: string
+      enum:
+        - Clay
+        - Sandy
+        - Loamy
+        - Peaty
+        - Chalky
+        - Silty
+    Crop:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: [string, "null"]
+        optimalTemperature:
+          type: string
+        category:
+          $ref: "#/components/schemas/CropCategory"
+        compatibleSoils:
+          type: array
+          items:
+            $ref: "#/components/schemas/SoilType"
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - name
+        - description
+        - optimalTemperature
+        - category
+        - compatibleSoils
+        - isActive
+        - createdAt
+    AdvisoryRequestInput:
+      type: object
+      additionalProperties: false
+      properties:
+        farmerName:
+          type: string
+          minLength: 2
+          maxLength: 255
+        phone:
+          type: string
+          minLength: 10
+          maxLength: 50
+        location:
+          type: string
+          minLength: 2
+          maxLength: 255
+        dateObserved:
+          type: string
+          pattern: "^\\d{4}-\\d{2}-\\d{2}$"
+        farmSizeAcres:
+          type: number
+          exclusiveMinimum: 0
+        issueDescription:
+          type: string
+          minLength: 10
+          maxLength: 10000
+      required:
+        - farmerName
+        - phone
+        - location
+        - dateObserved
+        - farmSizeAcres
+        - issueDescription
+    AdvisoryRequestReceipt:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [Pending, Analyzed, "In Progress", Resolved]
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - status
+        - createdAt
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error
 
